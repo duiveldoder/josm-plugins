@@ -46,6 +46,9 @@ public class HouseNumberInputHandler extends JosmAction implements ActionListene
     private final Node init;
     private final Relation associatedStreet;
     private final ArrayList<Node> housenumbers;
+	/* Hike&Map 17 Nov 2022 Start */
+	private final ArrayList<Node> housenumberslots;
+	/* Hike&Map 17 Nov 2022 End */
     public HouseNumberInputDialog dialog;
 
     /**
@@ -63,10 +66,18 @@ public class HouseNumberInputHandler extends JosmAction implements ActionListene
      * @param housenumbers a list of house number nodes in this outline (may be empty)
      * @param title the title
      */
-    public HouseNumberInputHandler(final TerracerAction terracerAction,
+	 /* Hike&Map 17 Nov 2022 Start */
+	 /* original
+	 public HouseNumberInputHandler(final TerracerAction terracerAction,
             final Way outline, final Node init, final Way street, final String streetName, final String buildingType,
             final Relation associatedStreet,
             final ArrayList<Node> housenumbers, final String title) {
+	 /* replaced by */
+    public HouseNumberInputHandler(final TerracerAction terracerAction,
+            final Way outline, final Node init, final Way street, final String streetName, final String buildingType,
+            final Relation associatedStreet,
+            final ArrayList<Node> housenumbers, final ArrayList<Node> housenumberslots , final String title) {
+	/* Hike&Map 17 Nov 2022 end */
         this.terracerAction = terracerAction;
         this.outline = outline;
         this.init = init;
@@ -74,9 +85,18 @@ public class HouseNumberInputHandler extends JosmAction implements ActionListene
         this.streetName = streetName;
         this.associatedStreet = associatedStreet;
         this.housenumbers = housenumbers;
+		/* Hike&Map 17 Nov 2022 Start */
+		this.housenumberslots = housenumberslots;
+		/* Hike&Map 17 Nov 2022 End */
 
+		/* Hike&Map 17 Nov 2022 Start */
+		/* original
         this.dialog = new HouseNumberInputDialog(this, street, streetName, buildingType,
                 associatedStreet != null, housenumbers);
+		*/		
+        this.dialog = new HouseNumberInputDialog(this, street, streetName, buildingType,
+                associatedStreet != null, housenumbers, housenumberslots);
+        /* Hike&Map 17 Nov 2022 End */
     }
 
     /**
@@ -118,6 +138,12 @@ public class HouseNumberInputHandler extends JosmAction implements ActionListene
         isOk = isOk && checkNumberOrder(message);
         isOk = isOk && checkSegmentsFromHousenumber(message);
         isOk = isOk && checkSegments(message);
+		/* Hike&Map 17 Nov 2022 Start */
+		isOk = isOk && checkNumberOrderLots(message);
+        isOk = isOk && checkSegmentsFromHousenumberLots(message);
+        isOk = isOk && checkSegmentsLots(message);
+		/* Hike&Map 17 Nov 2022 End */		
+		
 
         // Allow non numeric characters for the low number as long as there is
         // no high number of the segmentcount is 1
@@ -132,7 +158,21 @@ public class HouseNumberInputHandler extends JosmAction implements ActionListene
         isOk = isOk
                 && checkNumberStringField(dialog.segments, tr("Segments"),
                         message);
-
+		
+		/* Hike&Map 18 Nov 2022 Start */
+		if (dialog.hiLots.getText().length() > 0 && (segmentsLots() != null || segmentsLots() < 1)) {
+            isOk = isOk
+                    && checkNumberStringField(dialog.loLots, tr("Lowest lot number"),
+                            message);
+        }
+        isOk = isOk
+                && checkNumberStringField(dialog.hiLots, tr("Highest lot number"),
+                        message);
+        isOk = isOk
+                && checkNumberStringField(dialog.segmentsLots, tr("Segments lots"),
+                        message);
+		/* Hike&Map 18 Nov 2022 End */
+		
         if (isOk) {
             JButton okButton = getButton(dialog, "OK");
             if (okButton != null)
@@ -177,6 +217,28 @@ public class HouseNumberInputHandler extends JosmAction implements ActionListene
         }
         return true;
     }
+	
+	/* Hike&Map 18 Nov 2022 Start */
+		/**
+     * Checks, if the lowest house number is indeed lower than the
+     * highest house number.
+     * This check applies only, if the house number fields are used at all.
+     *
+     * @param message the message
+     *
+     * @return true, if successful
+     */
+    private boolean checkNumberOrderLots(final StringBuffer message) {
+        if (numberFromLots() != null && numberToLots() != null) {
+            if (numberFromLots().intValue() > numberToLots().intValue()) {
+                appendMessageNewLine(message);
+                message.append(tr("Lowest lot number cannot be higher than highest lot number"));
+                return false;
+            }
+        }
+        return true;
+    }
+	/* Hike&Map 18 Nov 2022 End */
 
     /**
      * Obtain the number segments from the house number fields and check,
@@ -212,6 +274,43 @@ public class HouseNumberInputHandler extends JosmAction implements ActionListene
         }
         return true;
     }
+	
+	/* Hike&Map 18 Nov 2022 Start */
+		/**
+     * Obtain the number segments from the house number fields and check,
+     * if they are valid.
+     *
+     * Also disables the segments field, if the house numbers contain
+     * valid information.
+     *
+     * @param message the message
+     *
+     * @return true, if successful
+     */
+    private boolean checkSegmentsFromHousenumberLots(final StringBuffer message) {
+        if (!dialog.numbersLots.isVisible()) {
+            dialog.segmentsLots.setEditable(true);
+
+            if (numberFromLots() != null && numberToLots() != null) {
+                int segmentsLots = numberToLots().intValue() - numberFromLots().intValue();
+
+                if (segmentsLots % stepSizeLots() != 0) {
+                    appendMessageNewLine(message);
+                    message
+                            .append(tr("Lot numbers do not match odd/even setting"));
+                    return false;
+                }
+
+                int steps = segmentsLots / stepSizeLots();
+                steps++; // difference 0 means 1 building, see
+                // TerracerActon.terraceBuilding
+                dialog.segmentsLots.setText(String.valueOf(steps));
+                dialog.segmentsLots.setEditable(false);
+            }
+        }
+        return true;
+    }
+	/* Hike&Map 18 Nov 2022 End */
 
     /**
      * Check the number of segments.
@@ -230,6 +329,26 @@ public class HouseNumberInputHandler extends JosmAction implements ActionListene
         }
         return true;
     }
+	
+	/* Hike&Map 18 Nov 2022 Start */
+	/**
+     * Check the number of segments.
+     * It must be a number and greater than 1.
+     *
+     * @param message the message
+     *
+     * @return true, if successful
+     */
+    private boolean checkSegmentsLots(final StringBuffer message) {
+        if (segmentsLots() == null || segmentsLots().intValue() < 1) {
+            appendMessageNewLine(message);
+            message.append(tr("Segment lots must be a number greater 1"));
+            return false;
+
+        }
+        return true;
+    }
+	/* Hike&Map 18 Nov 2022 End */
 
     /**
      * Check, if a string field contains a positive integer.
@@ -297,6 +416,14 @@ public class HouseNumberInputHandler extends JosmAction implements ActionListene
                             dialog.hi.getText(),
                             stepSize(),
                             housenumbers,
+							/* Hike&Map 18 Nov 2022 Start */
+							segmentsLots(),
+							dialog.loLots.getText(),
+							dialog.hiLots.getText(),
+							stepSizeLots(),
+							reverseLots(),  // 19 Nov 2022
+							housenumberslots,
+							/* Hike&Map 18 Nov 2022 End */
                             streetName(),
                             doHandleRelation(),
                             doKeepOutline(), buildingType());
@@ -324,6 +451,29 @@ public class HouseNumberInputHandler extends JosmAction implements ActionListene
     public Integer stepSize() {
         return dialog.interpolation.getSelectedItem().equals(tr("All")) ? 1 : 2;
     }
+	
+	/* Hike&Map 18 Nov 2022 Start */
+	/**
+     * Calculate the step size between two lot numbers,
+     * based on the interpolationLots setting.
+     *
+     * @return the stepSize (1 for all, 2 for odd /even)
+     */
+    public Integer stepSizeLots() {
+        return dialog.interpolationLots.getSelectedItem().equals(tr("All")) ? 1 : 2;
+    }
+	/* Hike&Map 18 Nov 2022 End */
+	
+	/* Hike&Map 19 Nov 2022 Start */
+	/**
+     * Reverse the numbers of lots vs house numbers?
+     *
+     * @return the reverseLots (1 for yes, 2 for no)
+     */
+    public Integer reverseLots() {
+        return dialog.reverseLots.getSelectedItem().equals(tr("Yes")) ? 1 : 2;
+    }
+	/* Hike&Map 19 Nov 2022 End */
 
     /**
      * Gets the number of segments, if set.
@@ -337,6 +487,22 @@ public class HouseNumberInputHandler extends JosmAction implements ActionListene
             return null;
         }
     }
+	
+	
+	/* Hike&Map 18 Nov 2022 Start */
+	/**
+     * Gets the number of segments, if set.
+     *
+     * @return the number of segments or null, if not set / invalid.
+     */
+    public Integer segmentsLots() {
+        try {
+            return Integer.parseInt(dialog.segmentsLots.getText());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+	/* Hike&Map 18 Nov 2022 End */
 
     /**
      * Gets the lowest house number.
@@ -350,6 +516,21 @@ public class HouseNumberInputHandler extends JosmAction implements ActionListene
             return null;
         }
     }
+	
+	/* Hike&Map 18 Nov 2022 Start */
+		/**
+     * Gets the lowest house number.
+     *
+     * @return the number of lowest house number or null, if not set / invalid.
+     */
+    public Integer numberFromLots() {
+        try {
+            return Integer.parseInt(dialog.loLots.getText());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+	/* Hike&Map 18 Nov 2022 End */
 
     /**
      * Gets the highest house number.
@@ -363,6 +544,21 @@ public class HouseNumberInputHandler extends JosmAction implements ActionListene
             return null;
         }
     }
+	
+	/* Hike&Map 18 Nov 2022 Start */
+		/**
+     * Gets the highest house number.
+     *
+     * @return the number of highest house number or null, if not set / invalid.
+     */
+    public Integer numberToLots() {
+        try {
+            return Integer.parseInt(dialog.hiLots.getText());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+	/* Hike&Map 18 Nov 2022 End */
 
     /**
      * Gets the street name.
@@ -444,5 +640,9 @@ public class HouseNumberInputHandler extends JosmAction implements ActionListene
         Config.getPref().putBoolean(HouseNumberInputDialog.HANDLE_RELATION, doHandleRelation());
         Config.getPref().putBoolean(HouseNumberInputDialog.KEEP_OUTLINE, doKeepOutline());
         Config.getPref().put(HouseNumberInputDialog.INTERPOLATION, stepSize().toString());
+		/* Hike&Map 19 Nov 2022 Start */
+		Config.getPref().put(HouseNumberInputDialog.INTERPOLATIONLOTS, stepSizeLots().toString());
+		Config.getPref().put(HouseNumberInputDialog.REVERSELOTS, reverseLots().toString());
+		/* Hike&Map 19 Nov 2022 End */
     }
 }

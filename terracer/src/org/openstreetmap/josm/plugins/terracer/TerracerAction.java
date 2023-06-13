@@ -110,6 +110,9 @@ public final class TerracerAction extends JosmAction {
         Way street = null;
         String streetname = null;
         ArrayList<Node> housenumbers = new ArrayList<>();
+		/* Hike&Map 17 Nov 2022 Start */
+		ArrayList<Node> housenumberslots = new ArrayList<>();
+		/* Hike&Map 17 Nov 2022 End */
         Node init = null;
 
         try {
@@ -163,6 +166,9 @@ public final class TerracerAction extends JosmAction {
                         }
 
                         housenumbers.add(node);
+						/* Hike&Map 17 Nov 2022 Start */
+						housenumberslots.add(node);
+						/* Hike&Map 17 Nov 2022 End */
                     } else {
                         // A given node might not be an address node but then
                         // it has to be part of the building to help getting
@@ -174,6 +180,9 @@ public final class TerracerAction extends JosmAction {
                 }
 
                 Collections.sort(housenumbers, new HousenumberNodeComparator());
+				/* Hike&Map 17 Nov 2022 Start */
+				Collections.sort(housenumberslots, new HousenumberNodeComparatorLots());
+				/* Hike&Map 17 Nov 2022 End */
             }
 
             if (outline == null || !outline.isClosed() || outline.getNodesCount() < 5)
@@ -213,20 +222,38 @@ public final class TerracerAction extends JosmAction {
             streetname = associatedStreet.get("name");
         }
 
-        if (housenumbers.size() == 1) {
+		/* Hike&Map 17 Nov 2022 Start */
+		/* Original
+		if (housenumbers.size() == 1) {
+		/* replaced by */		
+        if (housenumbers.size() == 1 && housenumberslots.size() == 1) {
+		/* Hike&Map 17 Nov 2022 End */
             // Special case of one outline and one address node.
             // Don't open the dialog
             try {
-                terraceBuilding(outline, init, street, associatedStreet, 0, null, null, 0,
+				/* Hike&Map 17 Nov 2022 Start */
+				/* Original
+				terraceBuilding(outline, init, street, associatedStreet, 0, null, null, 0,
                         housenumbers, streetname, associatedStreet != null, false, "yes");
+				/* replaced by */
+				terraceBuilding(outline, init, street, associatedStreet, 0, null, null, 0,
+                        housenumbers, 0, null, null, 0, 0, housenumberslots, streetname, associatedStreet != null, false, "yes");
+				/* Hike&Map 17 Nov 2022 End */
+                
             } catch (UserCancelException ex) {
                 Logging.trace(ex);
             }
         } else {
             String title = trn("Change {0} object", "Change {0} objects", sel.size(), sel.size());
             // show input dialog.
+			/* Hike&Map 17 Nov 2022 Start */
+			/* Original
             new HouseNumberInputHandler(this, outline, init, street, streetname, outline.get("building"),
                     associatedStreet, housenumbers, title).dialog.showDialog();
+			/* replaced by */
+			new HouseNumberInputHandler(this, outline, init, street, streetname, outline.get("building"),
+                    associatedStreet, housenumbers, housenumberslots, title).dialog.showDialog();
+			/* Hike&Map 17 Nov 2022 End */
         }
         cleanup();
     }
@@ -281,6 +308,47 @@ public final class TerracerAction extends JosmAction {
             return node1String.compareTo(node2String);
         }
     }
+	
+	/* Hike&Map 18 Nov 2022 Start */
+	/**
+     * Sorts the lot number nodes according their numbers only
+     *
+     * @param house
+     *            number nodes
+     */
+    static class HousenumberNodeComparatorLots implements Comparator<Node> {
+        private final Pattern pat = Pattern.compile("^(\\d+)\\s*(.*)");
+
+        @Override
+        public int compare(Node node1, Node node2) {
+            // It's necessary to strip off trailing non-numbers so we can
+            // compare the numbers itself numerically since string comparison
+            // doesn't work for numbers with different number of digits,
+            // e.g. 9 is higher than 11
+            String node1String = node1.get("addr:lot");
+            String node2String = node2.get("addr:lot");
+            Matcher mat = pat.matcher(node1String);
+            if (mat.find()) {
+                Integer node1Int = Integer.valueOf(mat.group(1));
+                String node1Rest = mat.group(2);
+                mat = pat.matcher(node2String);
+                if (mat.find()) {
+                    Integer node2Int = Integer.valueOf(mat.group(1));
+                    // If the numbers are the same, the rest has to make the decision,
+                    // e.g. when comparing 23, 23a and 23b.
+                    if (node1Int.equals(node2Int)) {
+                      String node2Rest = mat.group(2);
+                      return node1Rest.compareTo(node2Rest);
+                    }
+
+                    return node1Int.compareTo(node2Int);
+                }
+            }
+
+            return node1String.compareTo(node2String);
+        }
+    }
+	/* Hike&Map 18 Nov 2022 End */
 
     /**
      * Terraces a single, closed, quadrilateral way.
@@ -308,17 +376,57 @@ public final class TerracerAction extends JosmAction {
      * @param buildingValue The value for {@code building} key to add
      * @throws UserCancelException if user cancels the operation
      */
-    public void terraceBuilding(final Way outline, Node init, Way street, Relation associatedStreet, Integer segments,
+	/* Hike&Map 18 Nov 2022 Start */
+	/* original	 
+	 public void terraceBuilding(final Way outline, Node init, Way street, Relation associatedStreet, Integer segments,
                 String start, String end, int step, List<Node> housenumbers, String streetName, boolean handleRelations,
+                boolean keepOutline, String buildingValue) throws UserCancelException { 
+	 /* replaced by */	
+    public void terraceBuilding(final Way outline, Node init, Way street, Relation associatedStreet, Integer segments, 
+                String start, String end, int step, List<Node> housenumbers, Integer segmentsLots, String startLots,  String endLots, int stepLots, int reverseLots, List<Node> housenumberslots, String streetName, boolean handleRelations,
                 boolean keepOutline, String buildingValue) throws UserCancelException {
+	/* Hike&Map 18 Nov 2022 End */
         final int nb;
         Integer to = null, from = null;
+		/* Hike&Map 27 Nov 2022 Start */
+		Integer toLots = null, fromLots = null;
+		to = getNumber(end);
+        from = getNumber(start);
+		toLots = getNumber(endLots);
+		fromLots = getNumber(startLots);
+		/* Hike&Map 27 Nov 2022 End */
         if (housenumbers == null || housenumbers.isEmpty()) {
-            to = getNumber(end);
-            from = getNumber(start);
+			
             if (to != null && from != null) {
                 nb = 1 + (to.intValue() - from.intValue()) / step;
-            } else if (segments != null) {
+            }
+			/* Hike&Map 27 Nov 2022 Start */
+			else if (housenumberslots == null || housenumberslots.isEmpty()) 
+			{
+				if (toLots != null && fromLots != null) 
+				{
+					nb = 1 + (toLots.intValue() - fromLots.intValue()) / stepLots;
+				}
+				else if (segmentsLots != null)
+				{
+					nb = segmentsLots.intValue();
+				} 
+				else
+				{
+					// if we get here, there is is a bug in the input validation.
+					throw new TerracerRuntimeException(
+							"Could not determine segments from parameters, this is a bug. "
+									+ "Parameters were: segments " + segments
+									+ " from " + fromLots + " toLots " + toLots + " stepLots " + stepLots);
+				}
+			}
+			else if (housenumberslots != null && !housenumberslots.isEmpty())
+			{
+				nb = housenumberslots.size();
+			}
+			/* Hike&Map 27 Nov 2022 End */
+			else if (segments != null) 
+			{
                 nb = segments.intValue();
             } else {
                 // if we get here, there is is a bug in the input validation.
@@ -327,9 +435,24 @@ public final class TerracerAction extends JosmAction {
                                 + "Parameters were: segments " + segments
                                 + " from " + from + " to " + to + " step " + step);
             }
-        } else {
+        }
+		else 
+		{
             nb = housenumbers.size();
         }
+		
+		
+		/* Hike&Map 18 Nov 2022 Start */
+		// Check here to ensure the lot numbers in total size equal the number of house numbers
+		// example house numbers: 2, 4, 6, 8, 10, 12, 14   - total 7 house numbers
+		// lot numbers: 		  1, 2, 3, 4,  5,  6,  7   - and 7 lot numbers
+		// 
+		// example 2 house numbers:  25,  27,  29,  31,  33,  35 - 6 house numbers
+		// lot numbers:  			179, 178, 177, 176, 175, 174 - 6 lot numbers
+		// wrong would be the following:
+		// house numbers:		    13, 15, 17, 19, 21, 23, 25   - 7 house numbers
+		// lot numbers:				56, 57, 58, 59, 60, 61		 - 6 lot numbers
+		/* Hike&Map 18 Nov 2022 End */
 
         // now find which is the longest side connecting the first node
         Pair<Way, Way> interp = findFrontAndBack(outline);
@@ -386,8 +509,19 @@ public final class TerracerAction extends JosmAction {
                 terr.addNode(newNodes[1][i]);
                 terr.addNode(newNodes[0][i]);
 
-                addressBuilding(terr, street, streetName, associatedStreet, housenumbers, i,
-                        from != null ? Integer.toString(from + i * step) : null, buildingValue);
+				/* Hike&Map 18 Nov 2022 Start */
+				/* original				
+                addressBuilding(terr, street, streetName, associatedStreet, housenumbers, i, from != null ? Integer.toString(from + i * step) : null, buildingValue);
+				/* Replaced by */
+				if (reverseLots == 1) // reversed counting of lot numbers?
+				{ 
+					addressBuilding(terr, street, streetName, associatedStreet, housenumbers, i, from != null ? Integer.toString(from + i * step) : null, housenumberslots, i, fromLots != null ? Integer.toString(fromLots + (nb - 1 - i) * stepLots) : null, buildingValue);
+				}
+				else 
+				{
+					addressBuilding(terr, street, streetName, associatedStreet, housenumbers, i, from != null ? Integer.toString(from + i * step) : null, housenumberslots, i, fromLots != null ? Integer.toString(fromLots + i * stepLots) : null, buildingValue);
+				}
+				/* Hike&Map 18 Nov 2022 End */
 
                 if (createNewWay) {
                     ways.add(terr);
@@ -411,7 +545,12 @@ public final class TerracerAction extends JosmAction {
             }
         } else {
             // Single building, just add the address details
+			/* Hike&Map 18 Nov 2022 Start */
+			/* original
             addressBuilding(outline, street, streetName, associatedStreet, housenumbers, 0, start, buildingValue);
+			/* Replaced by */			
+            addressBuilding(outline, street, streetName, associatedStreet, housenumbers, 0, start, housenumberslots, 0, startLots, buildingValue);
+			/* Hike&Map 18 Nov 2022 End */
             ways.add(outline);
         }
 
@@ -512,12 +651,20 @@ public final class TerracerAction extends JosmAction {
      * @param buildingValue The value for {@code building} key to add
      * @throws UserCancelException if user cancels the operation
      */
-    private void addressBuilding(Way outline, Way street, String streetName, Relation associatedStreet,
-            List<Node> housenumbers, int i, String defaultNumber, String buildingValue) throws UserCancelException {
+	 /* Hike&Map 18 Nov 2022 Start */
+	 /* Original
+	 private void addressBuilding(Way outline, Way street, String streetName, Relation associatedStreet, List<Node> housenumbers, int i, String defaultNumber, String buildingValue) throws UserCancelException {
+	 /* Replaced by */
+	 private void addressBuilding(Way outline, Way street, String streetName, Relation associatedStreet, List<Node> housenumbers, int i, String defaultNumber, List<Node> housenumberslots, int iLot, String defaultNumberLot, String buildingValue) throws UserCancelException {
+	 /* Hike&Map 18 Nov 2022 End */    
         Node houseNum = (housenumbers != null && i >= 0 && i < housenumbers.size()) ? housenumbers.get(i) : null;
+		/* Hike&Map 18 Nov 2022 Start */		
+		boolean lotadded = false;
+		boolean refadded = false;
+		/* Hike&Map 18 Nov 2022 End */
         boolean buildingAdded = false;
         boolean numberAdded = false;
-        Map<String, String> tags = new HashMap<>();
+        Map<String, String> tags = new HashMap<>();		
         if (houseNum != null) {
             primitives = Arrays.asList(new OsmPrimitive[]{houseNum, outline});
 
@@ -531,13 +678,29 @@ public final class TerracerAction extends JosmAction {
 
             buildingAdded = houseNum.hasKey("building");
             numberAdded = houseNum.hasKey("addr:housenumber");
+			/* Hike&Map 18 Nov 2022 Start */
+			refadded = houseNum.hasKey("ref");
+			lotadded = houseNum.hasKey("addr:lot");
+			/* Hike&Map 18 Nov 2022 End */
         }
         if (!buildingAdded && buildingValue != null && !buildingValue.isEmpty()) {
             tags.put("building", buildingValue);
         }
         if (defaultNumber != null && !numberAdded) {
             tags.put("addr:housenumber", defaultNumber);
+            /* Hike&Map 18 Nov 2022 Start */
+			numberAdded = true;
+			/* Hike&Map 18 Nov 2022 End */
         }
+		/* Hike&Map 18 Nov 2022 Start */
+		if (defaultNumberLot != null && !lotadded) {
+            tags.put("addr:lot", defaultNumberLot);		// Lot numbers are widely used in Asia either in collaboration with or even as substitution for real house numbers.
+        }
+		if (defaultNumberLot != null && !refadded && !numberAdded) { // if a building has a house number - we don't add a reference tag anymore - if there's a lot nr, we can add it to addr:lot without ref
+            tags.put("ref", defaultNumberLot);
+        }
+		/* Hike&Map 18 Nov 2022 End */
+		
         // Only put addr:street if no relation exists or if it has no name
         if (associatedStreet == null || !associatedStreet.hasKey("name")) {
             if (street != null) {
