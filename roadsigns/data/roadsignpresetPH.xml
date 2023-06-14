@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+roadsigns plugin preset file for the Philippines
+
+This is for road signs along the road
+
+-->
+<roadsignpreset country="PH">
+	<sign 
+	ref="PH:R1-1" 
+	icon="Philippines_road_sign_R1-1"
+	traffic_sign_tag="" 
+	name="stop"
+	help="General stop sign for all traffic"
+	wiki="Key:stop">
+    <tag key="highway" value="stop"/>
+    <supplementary id="BE:M1"/> <!--only_applies_to_bicycles"-->
+    <supplementary id="BE:M8"/> <!--only_applies_to_bicycles_and_mofas"-->
+  </sign>
+</roadsignpreset>

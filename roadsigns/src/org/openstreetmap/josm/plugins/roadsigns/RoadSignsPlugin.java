@@ -58,8 +58,18 @@ public class RoadSignsPlugin extends Plugin {
             "PL", tr("Poland"), "resource://data/roadsignpresetPL.xml", "resource://images/PL/");
     public static final PresetMetaData PRESET_SK = new PresetMetaData(
             "SK", tr("Slovakia"), "resource://data/roadsignpresetSK.xml", "resource://images/SK/");
+    /* HikeAndMap 2023-06-10 start */
+    public static final PresetMetaData PRESET_PH = new PresetMetaData(
+            "PH", tr("Philippines"), "resource://data/roadsignpresetPH.xml", "resource://images/PH/");
+    /* HikeAndMap 2023-06-10 end */
+    /* HikeAndMap 2023-06-10 start */
+    /* original
     public static final Collection<PresetMetaData> DEFAULT_PRESETS = Arrays.asList(
             PRESET_BE, PRESET_CZ, PRESET_ES, PRESET_DE, PRESET_PL, PRESET_SK);
+            */
+    public static final Collection<PresetMetaData> DEFAULT_PRESETS = Arrays.asList(
+            PRESET_BE, PRESET_CZ, PRESET_ES, PRESET_DE, PRESET_PL, PRESET_SK, PRESET_PH);
+    /* HikeAndMap 2023-06-10 end */
 
     public RoadSignsPlugin(PluginInformation info) {
         super(info);
